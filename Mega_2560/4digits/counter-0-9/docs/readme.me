@@ -1,0 +1,88 @@
+# 4-Digit 7-Segment + 74HC595 + Arduino Mega (Multiplexed)
+
+## What this build is
+This project drives a 4-digit 7-segment LED display (5641AS) using:
+- 1 × 74HC595 shift register to control the 8 segment lines (A..G + DP)
+- 4 Arduino pins to select which digit is active (DIG1..DIG4)
+- Software multiplexing to display 4 digits using shared segment wires
+
+## Why we use a 74HC595
+A 4-digit 7-segment display needs up to 8 segment control lines (A,B,C,D,E,F,G,DP).
+Instead of using 8 Arduino pins, the 74HC595 lets us send those 8 bits using only 3 Arduino pins:
+
+- DATA  (DS)   : the bit stream
+- CLOCK (SHCP) : shifts bits into the chip
+- LATCH (STCP) : copies the shifted bits to the output pins all at once
+
+So: 3 pins from Arduino -> 8 outputs to segments.
+
+## Critical 74HC595 pins (must be wired correctly)
+- VCC (pin 16) must be +5V
+- GND (pin 8) must be GND
+- MR / SRCLR (pin 10) must be tied HIGH (+5V) or the chip stays reset
+- OE (pin 13) must be tied LOW (GND) or outputs are disabled
+
+If MR/OE are wrong or floating you’ll see "random segments" or nothing.
+
+## Multiplexing: how 4 digits share the same segment wires
+All 4 digits share the segment pins A..G and DP.
+Only one digit is turned on at a time, very quickly:
+
+1. Turn all digits OFF
+2. Output segment pattern for the digit you want (via 74HC595)
+3. Turn ON exactly one digit (DIG1..DIG4)
+4. Wait a tiny time (hundreds to a couple thousand microseconds)
+5. Repeat for the next digit
+
+If this repeats fast enough (typically > 100 refreshes/sec), your eyes see all 4 digits continuously.
+
+## Digit select is ACTIVE LOW
+In this wiring, a digit turns on when its DIG pin is grounded.
+So in code:
+- HIGH = digit OFF
+- LOW  = digit ON
+
+This is why the code always does:
+- set all digits HIGH (off)
+- set one digit LOW (on)
+
+## Current limiting resistors
+Each segment LED must have a series resistor.
+We use 220Ω per segment line between the 74HC595 output and the display segment pin.
+Without resistors, the LEDs can be overdriven and the 74HC595 can be damaged.
+
+## Segment bit order (standard table used)
+The segment table encodes digits 0-9 into a byte:
+- bit0 = A
+- bit1 = B
+- bit2 = C
+- bit3 = D
+- bit4 = E
+- bit5 = F
+- bit6 = G
+- bit7 = DP
+
+We confirmed the wiring matches this bit order by running single-bit tests.
+
+## Common troubleshooting
+### Nothing lights at all
+- Check 74HC595 pin13 (OE) is GND
+- Check 74HC595 pin10 (MR) is +5V
+- Check digit enable: at least one DIG pin must go LOW at some point
+- Verify LATCH pin: MEGA D9 -> 74HC595 pin12
+
+### A particular digit never lights
+- Verify the digit select wire for that DIG pin (and that it matches your code’s pin mapping)
+
+### A particular segment never lights
+- Check that segment’s 220Ω resistor and that the jumper is in the same breadboard row as the resistor leg
+- Confirm the segment pin number on the display matches the wiring doc
+
+### “Random” segments or unstable patterns
+- Latch (STCP) not wired or wrong pin on the 74HC595
+- OE/MR floating
+- Breadboard row off-by-one on any of the 74HC595 pins
+
+## Reference: Display pinout (from the diagram used)
+Top row: 12=D1, 11=A, 10=F, 9=D2, 8=D3, 7=B
+Bottom : 1=E, 2=D, 3=DP, 4=C, 5=G, 6=D4
