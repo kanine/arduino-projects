@@ -34,3 +34,26 @@
 - When giving code, include concise setup notes relevant to the active board (selected board package, required libraries, voltage notes).
 - When giving wiring help, include pin labels and highlight any pins that are input-only, boot-strapping, or otherwise constrained on that board.
 - If a recommendation depends on uncertain board details, state the assumption explicitly and request confirmation.
+
+---
+
+## Wiring Documentation Standard
+
+All Arduino projects in this monorepo must document wiring using **ATN-IO v3 notation**, defined in [docs/wiring-notation.md](../docs/wiring-notation.md).
+
+### Requirements
+- Each project **must** include a `docs/wiring.md` file
+- The `wiring.md` file **must** follow ATN-IO v3 format for consistency and clarity
+- Include ATN-IO v3 sections in this order: `[BOARD]`, `[INPUTS]`, `[OUTPUTS]`, `[COMPONENTS]`, `[WIRING]`, `[POWER]`, `[NOTES]`
+- At minimum, include `[BOARD]` and `[WIRING]` sections (all others are optional)
+
+### When Reading Existing Projects
+- Always refer to the project's `docs/wiring.md` to understand electrical connections and logical mappings
+- Use ATN-IO v3 notation to extract pin assignments, component references, and current paths
+- Cross-reference the notation guide if terminology is unclear
+
+### When Documenting New Wiring
+- Generate or suggest `docs/wiring.md` files in ATN-IO v3 format
+- Ensure logical mapping (`[INPUTS]`, `[OUTPUTS]`) is consistent with physical wiring (`[WIRING]`)
+- Include `[COMPONENTS]` for clarity and to support BOM generation
+- Use the naming conventions defined in the notation guide for consistency

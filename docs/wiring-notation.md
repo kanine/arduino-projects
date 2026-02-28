@@ -1,5 +1,4 @@
-# instructions.md  
-## ATN-IO v3 – Arduino Text Notation
+# ATN-IO v3 – Arduino Text Notation
 
 ---
 
@@ -38,6 +37,7 @@ It is designed to be:
 ## File Structure
 
 Sections must appear in this order:
+```
 [BOARD]
 [INPUTS] (optional)
 [OUTPUTS] (optional)
@@ -45,6 +45,7 @@ Sections must appear in this order:
 [WIRING] (mandatory)
 [POWER] (optional)
 [NOTES] (optional)
+```
 
 
 Only `[BOARD]` and `[WIRING]` are required.
@@ -60,14 +61,16 @@ Only `[BOARD]` and `[WIRING]` are required.
 Declares controller metadata.
 
 Format:
+```
 KEY = VALUE
-
+```
 
 Example:
-
+```
 [BOARD]
 TYPE = Arduino Mega 2560
 LOGIC = 5V
+```
 
 
 ---
@@ -77,15 +80,16 @@ LOGIC = 5V
 Maps logical input names to board pins.
 
 Format:
-
+```
 NAME -> PIN
+```
 
 Example:
-
-
+```
 [INPUTS]
 IR1 -> D2
 SONIC1 -> D3
+```
 
 
 This is logical mapping only.  
@@ -98,16 +102,16 @@ It does NOT describe the full electrical path.
 Maps logical output names to board pins.
 
 Format:
-
+```
 NAME -> PIN
-
+```
 
 Example:
-
-
+```
 [OUTPUTS]
 LED1 -> D13
 CUT_RELAY -> D8
+```
 
 
 ### [COMPONENTS]
@@ -115,19 +119,18 @@ CUT_RELAY -> D8
 Lists physical parts used in the build.
 
 Format:
-
-
+```
 REF = DESCRIPTION
+```
 
-
-Examples:
-
-
+Example:
+```
 [COMPONENTS]
 R1 = 220R
 LED1 = LED, RED
 RELAY1 = 5V Relay Module
 IR1 = NPN_SENSOR, 24V
+```
 
 
 This section supports:
@@ -142,30 +145,26 @@ This section supports:
 Defines the actual electrical path.
 
 Format:
-
-
+```
 NODE -> NODE -> NODE
-
+```
 
 Each arrow indicates a physical series connection.
 
-Examples:
-
-Simple LED:
-
-
+Example – Simple LED:
+```
 [WIRING]
 D13 -> R1 -> LED1.A
 LED1.K -> GND
+```
 
-
-24V sensor:
-
-
+Example – 24V sensor:
+```
 [WIRING]
 24V -> IR1.BROWN
 IR1.BLACK -> D2
 IR1.BLUE -> GND
+```
 
 
 Valid nodes:
@@ -184,17 +183,16 @@ Every current path must terminate logically (usually at GND or a rail).
 Declares named voltage rails.
 
 Format:
-
-
+```
 NAME -> VOLTAGE
-
+```
 
 Example:
-
-
+```
 [POWER]
 SENSORS_V+ -> 24V
 COMMON_GND -> GND
+```
 
 
 ---
@@ -208,6 +206,7 @@ Ignored by parsers.
 
 ## Complete Example – Arduino Mega Blink
 
+```
 ATN-IO v3
 Project: Arduino Mega Blink
 
@@ -225,6 +224,7 @@ LED1 = LED, RED
 [WIRING]
 D13 -> R1 -> LED1.A
 LED1.K -> GND
+```
 
 
 ---
@@ -242,9 +242,8 @@ LED1.K -> GND
 ## Why This Format Works
 
 It mirrors industrial practice:
-
-Logical mapping → Control intent  
-Wiring section → Electrical reality  
+- **Logical mapping** → Control intent  
+- **Wiring section** → Electrical reality  
 
 This makes it:
 
@@ -269,11 +268,10 @@ Consistency matters.
 ## Summary
 
 ATN-IO v3 is:
-
-Readable  
-Deterministic  
-Scalable  
-Industrial-friendly  
-Suitable for AI parsing  
+- Readable
+- Deterministic
+- Scalable
+- Industrial-friendly
+- Suitable for AI parsing
 
 It cleanly separates logic from wiring and keeps everything explicit.
