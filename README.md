@@ -1,6 +1,6 @@
 # Arduino Projects Monorepo
 
-This repository is a monorepo of self-contained Arduino projects intended for Arduino IDE 2.
+This repository is a monorepo of self-contained Arduino projects intended for Arduino IDE 2. All of these are a work in progress as I experiment, I'll make an effort to put a tested.ok to indicate that the project should work, but please do your own checking and validation.
 
 ## Project Structure
 - Each sub-folder is one complete project.
