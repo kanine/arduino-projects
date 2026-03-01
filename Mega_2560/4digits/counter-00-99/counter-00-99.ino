@@ -1,16 +1,16 @@
-// Two-digit multiplex: steady "99" on DIG3 and DIG4
+// Counter 0000 -> 9999, looping, updating 4x per second
 // 74HC595 shift register on pins 8/9/10
-// DIG3 (pin 4) = tens, DIG4 (pin 5) = units
+// DIG1..DIG4 map left-to-right on pins 2..5
 // Common-cathode display: digit pin LOW = ON
 
 const int latch    = 9;
 const int clockPin = 10;
 const int data     = 8;
 
-const int DIG1 = 2;   // unused here, keep forced OFF
-const int DIG2 = 3;   // unused here, keep forced OFF
-const int DIG3 = 4;   // tens
-const int DIG4 = 5;   // units
+const int DIG1 = 2;   // leftmost (kept OFF in this test)
+const int DIG2 = 3;
+const int DIG3 = 4;
+const int DIG4 = 5;   // rightmost
 
 const unsigned char table[] = {
   0x3f, // 0
@@ -25,28 +25,24 @@ const unsigned char table[] = {
   0x6f  // 9
 };
 
-byte count = 0;
-unsigned long lastCount = 0;
-constexpr unsigned long COUNT_INTERVAL_MS = 700;
-// Per-digit on-time calibration (microseconds).
-// 1 and 4 are intentionally lower because they appear much brighter on this setup.
-const unsigned int DIGIT_ON_US[10] = {
-  3400, // 0
-  1700, // 1
-  3100, // 2
-  3100, // 3
-  2200, // 4
-  3200, // 5
-  3400, // 6
-  2500, // 7
-  3600, // 8
-  3400  // 9
-};
-
 void shiftSeg(byte s) {
   digitalWrite(latch, LOW);
   shiftOut(data, clockPin, MSBFIRST, s);
   digitalWrite(latch, HIGH);
+}
+
+void allDigitsOff() {
+  digitalWrite(DIG1, HIGH);
+  digitalWrite(DIG2, HIGH);
+  digitalWrite(DIG3, HIGH);
+  digitalWrite(DIG4, HIGH);
+}
+
+void showDigit(int digPin, byte value) {
+  shiftSeg(table[value]);    // pre-load segments while previous digit still on
+  allDigitsOff();            // dark gap now only ~16 µs (no shiftOut in between)
+  digitalWrite(digPin, LOW); // immediately activate next digit
+  delayMicroseconds(4000);
 }
 
 void setup() {
@@ -58,38 +54,30 @@ void setup() {
   pinMode(DIG3,     OUTPUT);
   pinMode(DIG4,     OUTPUT);
 
-  // All digits off (HIGH = off for common-cathode)
-  digitalWrite(DIG1, HIGH);
-  digitalWrite(DIG2, HIGH);
-  digitalWrite(DIG3, HIGH);
-  digitalWrite(DIG4, HIGH);
+  allDigitsOff();
 }
 
 void loop() {
-  byte tens = count / 10;
-  byte units = count % 10;
-  unsigned int tensOnUs = DIGIT_ON_US[tens];
-  unsigned int unitsOnUs = DIGIT_ON_US[units];
+  static unsigned int count = 0;
+  static unsigned long lastStep = 0;
 
-  // Keep unused digits OFF
-  digitalWrite(DIG1, HIGH);
-  digitalWrite(DIG2, HIGH);
+  // Split count into individual digits
+  byte d1 = count / 1000;
+  byte d2 = (count / 100) % 10;
+  byte d3 = (count / 10)  % 10;
+  byte d4 = count % 10;
 
-  // Phase A: show tens on DIG3 only
-  shiftSeg(table[tens]);
-  digitalWrite(DIG3, LOW);
-  digitalWrite(DIG4, HIGH);
-  delayMicroseconds(tensOnUs);
+  // Multiplex all 4 digits
+  showDigit(DIG1, d1);
+  showDigit(DIG2, d2);
+  showDigit(DIG3, d3);
+  showDigit(DIG4, d4);
 
-  // Phase B: show units on DIG4 only
-  shiftSeg(table[units]);
-  digitalWrite(DIG3, HIGH);
-  digitalWrite(DIG4, LOW);
-  delayMicroseconds(unitsOnUs);
-
+  // Advance counter 4 times per second
   unsigned long now = millis();
-  if (now - lastCount >= COUNT_INTERVAL_MS) {
-    lastCount = now;
-    count = (count + 1) % 100;
+  if (now - lastStep >= 250) {
+    lastStep = now;
+    count++;
+    if (count > 9999) count = 0;
   }
 }
