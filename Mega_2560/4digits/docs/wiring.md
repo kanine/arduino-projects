@@ -4,6 +4,14 @@
 - Segments are driven by 74HC595 through 220Ω resistors
 - Display is multiplexed in software (one digit at a time, fast refresh)
 
+[PARTS LIST]
+1 x Arduino Model: Mega 2560
+1 x 4-digit 7-seg Model: 5641AS
+1 x Integrated Circuit Model: 74HC595
+8 x 220Ω Resistors
+1 x Breadboard (Large)
+20+ x Jumper Wires
+
 [POWER]
 MEGA_5V  -> BREADBOARD_+RAIL
 MEGA_GND -> BREADBOARD_-RAIL
