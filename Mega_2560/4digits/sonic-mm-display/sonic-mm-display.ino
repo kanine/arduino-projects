@@ -113,7 +113,7 @@ void setup() {
   allDigitsOff();
 
   // Optional: Serial monitor for debugging
-  Serial.begin(115200);
+  Serial.begin(19200);
 }
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
