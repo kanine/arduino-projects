@@ -27,6 +27,12 @@ const int ONBOARD_LED = 13;
 
 // ── Timing ────────────────────────────────────────────────────────────────────
 const unsigned long MEASURE_INTERVAL = 20;     // ms between sensor reads
+const bool          DEBUG_SENSOR_RAW = true;   // print raw D6 state to Serial
+const unsigned long DEBUG_INTERVAL   = 200;    // ms between debug lines
+
+// ── Sensor logic options ──────────────────────────────────────────────────────
+const bool SENSOR_ACTIVE_LOW   = false;   // E18 default: LOW means detected
+const bool USE_INTERNAL_PULLUP = true;   // experiment mode; keep external 10k if present
 
 // ── Segment table: bit0=A … bit6=G, bit7=DP ──────────────────────────────────
 const unsigned char table[] = {
@@ -93,8 +99,8 @@ void refreshDisplay() {
 
 // ── E18-D80NK read ────────────────────────────────────────────────────────────
 bool isObjectDetected() {
-  // Active LOW: output transistor pulls line low when detection is active.
-  return digitalRead(SENSOR_OUT) == LOW;
+  int raw = digitalRead(SENSOR_OUT);
+  return SENSOR_ACTIVE_LOW ? (raw == LOW) : (raw == HIGH);
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -106,7 +112,7 @@ void setup() {
   pinMode(DIG2,        OUTPUT);
   pinMode(DIG3,        OUTPUT);
   pinMode(DIG4,        OUTPUT);
-  pinMode(SENSOR_OUT,  INPUT);   // external 10k pull-up required
+  pinMode(SENSOR_OUT,  USE_INTERNAL_PULLUP ? INPUT_PULLUP : INPUT);
   pinMode(ONBOARD_LED, OUTPUT);
 
   digitalWrite(ONBOARD_LED, LOW);
@@ -114,12 +120,16 @@ void setup() {
 
   Serial.begin(19200);
   Serial.print("SENSOR_TIMEOUT: "); Serial.print(SENSOR_TIMEOUT); Serial.println(" ms");
-  Serial.println("Sensor: E18-D80NK (active LOW output)");
+  Serial.print("Sensor: E18-D80NK active ");
+  Serial.println(SENSOR_ACTIVE_LOW ? "LOW" : "HIGH");
+  Serial.print("Internal pull-up: ");
+  Serial.println(USE_INTERNAL_PULLUP ? "ON" : "OFF");
 }
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
   static unsigned long lastMeasure = 0;
+  static unsigned long lastDebugMs  = 0;
   static bool lastDetected          = false;
   unsigned long now = millis();
 
@@ -152,12 +162,23 @@ void loop() {
     lastDetected = detected;
   }
 
-  // ── 2. LED timeout check ──────────────────────────────────────────────────
+  // ── 2. Optional raw input debug ────────────────────────────────────────────
+  if (DEBUG_SENSOR_RAW && (now - lastDebugMs >= DEBUG_INTERVAL)) {
+    lastDebugMs = now;
+    int raw = digitalRead(SENSOR_OUT);
+    Serial.print("D6 raw=");
+    Serial.print(raw == LOW ? "LOW" : "HIGH");
+    Serial.print(" detected=");
+    bool detected = SENSOR_ACTIVE_LOW ? (raw == LOW) : (raw == HIGH);
+    Serial.println(detected ? "YES" : "NO");
+  }
+
+  // ── 3. LED timeout check ──────────────────────────────────────────────────
   if (ledActive && (now - ledOnAt >= SENSOR_TIMEOUT)) {
     ledActive = false;
     digitalWrite(ONBOARD_LED, LOW);
   }
 
-  // ── 3. Multiplex display ──────────────────────────────────────────────────
+  // ── 4. Multiplex display ──────────────────────────────────────────────────
   refreshDisplay();
 }
