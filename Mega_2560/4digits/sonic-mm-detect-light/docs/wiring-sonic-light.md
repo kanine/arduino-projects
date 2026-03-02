@@ -1,6 +1,6 @@
-# Ultrasonic Distance Meter Wiring (Arduino Mega 2560)
+# E18-D80NK Object Detector Wiring (Arduino Mega 2560)
 
-This document describes the wiring for an **HC-SR04 ultrasonic sensor** and a **4-digit 7-segment display (5641AS, common cathode)** driven via a **74HC595** shift register.
+This document describes the wiring for an **E18-D80NK infrared obstacle sensor** and a **4-digit 7-segment display (5641AS, common cathode)** driven via a **74HC595** shift register.
 
 ## Board
 
@@ -13,13 +13,12 @@ This document describes the wiring for an **HC-SR04 ultrasonic sensor** and a **
 
 | Signal | Mega Pin |
 |---|---|
-| ECHO | D7 |
+| E18_OUT | D6 |
 
 ### Outputs
 
 | Signal | Mega Pin |
 |---|---|
-| TRIG | D6 |
 | DATA | D8 |
 | LATCH | D9 |
 | CLK | D10 |
@@ -34,8 +33,9 @@ This document describes the wiring for an **HC-SR04 ultrasonic sensor** and a **
 |---|---|---|
 | U1 | 74HC595 | Shift register |
 | DSP | 5641AS 4-digit 7-segment | Common cathode |
-| SONIC1 | HC-SR04 | Ultrasonic distance sensor |
+| SENSOR1 | E18-D80NK | Infrared reflective obstacle sensor |
 | R1-R8 | 220R each | Segment current limiting (A, B, C, D, E, F, G, DP) |
+| R9 | 10K | Pull-up for E18 output (open collector) |
 
 ## Wiring
 
@@ -78,22 +78,21 @@ This document describes the wiring for an **HC-SR04 ultrasonic sensor** and a **
 | D4 | DSP.PIN8 | DIG3 |
 | D5 | DSP.PIN6 | DIG4 (rightmost) |
 
-### 5) HC-SR04
+### 5) E18-D80NK
 
 | From | To |
 |---|---|
-| 5V | SONIC1.VCC |
-| GND | SONIC1.GND |
-| D6 | SONIC1.TRIG |
-| SONIC1.ECHO | D7 |
+| 5V | SENSOR1 brown wire |
+| GND | SENSOR1 blue wire |
+| SENSOR1 black wire | D6 |
+| R9 (10K) | Between D6 and +5V |
 
 ## Notes
 
 - Segment bit order in the shift-register byte: `bit0=A`, `bit1=B`, `...`, `bit6=G`, `bit7=DP`.
 - The display is common-cathode: digit pin `LOW = ON`, `HIGH = OFF`.
-- HC-SR04 operates at 5V and is directly compatible with Mega 2560 logic levels.
-- TRIG pulse is `10 us` HIGH; ECHO pulse width is proportional to distance.
-- Distance formula: `mm = (echo_us * 343) / 2000`.
-- Readings are taken every `100 ms`; display is continuously multiplexed between readings.
-- Display range is `0000-9999 mm`; `9999` is shown if out of range or no echo is received.
-- HC-SR04 shares the breadboard +5V and GND rails (no additional rail wiring needed).
+- E18-D80NK operates at 5V and uses an open-collector NPN output.
+- Output behavior: `LOW = object detected`, `HIGH = no object` (via pull-up resistor).
+- Detection distance is adjustable on the sensor body (roughly `3 cm` to `80 cm`, target-dependent).
+- The sketch samples the sensor every `20 ms`; display is continuously multiplexed between samples.
+- Display behavior: `0000` when detected, `----` when no object is detected.

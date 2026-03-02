@@ -1,17 +1,15 @@
-// Ultrasonic distance meter – HC-SR04 -> 4-digit 7-seg (5641AS) via 74HC595
-// Displays distance in mm (0000–9999).
-// Out-of-range: display shows "----", onboard LED off.
-// In-range:     display shows mm reading, onboard LED on for SENSOR_TIMEOUT ms,
-//               then off until a fresh in-range reading arrives.
+// Object detector – E18-D80NK -> 4-digit 7-seg (5641AS) via 74HC595
+// E18-D80NK output is open collector and active LOW when object is detected.
+// Detected:    display shows "0000", onboard LED on for SENSOR_TIMEOUT ms.
+// Not detected: display shows "----", onboard LED off (unless timeout window active).
 //
 // Mega pins used:
 //   Shift register : DATA=D8, LATCH=D9, CLK=D10
 //   Digit select   : DIG1=D2, DIG2=D3, DIG3=D4, DIG4=D5
-//   HC-SR04        : TRIG=D6, ECHO=D7
+//   E18-D80NK OUT  : D6 (with external 10k pull-up to +5V)
 //   Onboard LED    : D13 (built-in on all Arduino boards)
 
 // ── User parameters ───────────────────────────────────────────────────────────
-const unsigned int  OUT_OF_RANGE   = 500;   // mm – readings >= this = no target
 const unsigned long SENSOR_TIMEOUT = 3000;   // ms – how long LED stays on after a hit
 
 // ── Pin assignments ───────────────────────────────────────────────────────────
@@ -24,13 +22,11 @@ const int DIG2 = 3;
 const int DIG3 = 4;
 const int DIG4 = 5;
 
-const int TRIG        = 6;
-const int ECHO        = 7;
+const int SENSOR_OUT  = 6;   // E18-D80NK black wire
 const int ONBOARD_LED = 13;
 
 // ── Timing ────────────────────────────────────────────────────────────────────
-const unsigned long MEASURE_INTERVAL = 100;    // ms between sensor reads
-const unsigned long ECHO_TIMEOUT_US  = 30000UL;
+const unsigned long MEASURE_INTERVAL = 20;     // ms between sensor reads
 
 // ── Segment table: bit0=A … bit6=G, bit7=DP ──────────────────────────────────
 const unsigned char table[] = {
@@ -95,20 +91,10 @@ void refreshDisplay() {
   }
 }
 
-// ── Ultrasonic read ───────────────────────────────────────────────────────────
-unsigned int readDistanceMM() {
-  digitalWrite(TRIG, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG, LOW);
-
-  unsigned long duration = pulseIn(ECHO, HIGH, ECHO_TIMEOUT_US);
-  if (duration == 0) return 0xFFFF;
-
-  unsigned long mm = (duration * 343UL) / 2000UL;
-  if (mm > 9999) mm = 9999;
-  return (unsigned int)mm;
+// ── E18-D80NK read ────────────────────────────────────────────────────────────
+bool isObjectDetected() {
+  // Active LOW: output transistor pulls line low when detection is active.
+  return digitalRead(SENSOR_OUT) == LOW;
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -120,46 +106,50 @@ void setup() {
   pinMode(DIG2,        OUTPUT);
   pinMode(DIG3,        OUTPUT);
   pinMode(DIG4,        OUTPUT);
-  pinMode(TRIG,        OUTPUT);
-  pinMode(ECHO,        INPUT);
+  pinMode(SENSOR_OUT,  INPUT);   // external 10k pull-up required
   pinMode(ONBOARD_LED, OUTPUT);
 
-  digitalWrite(TRIG,        LOW);
   digitalWrite(ONBOARD_LED, LOW);
   allDigitsOff();
 
   Serial.begin(19200);
-  Serial.print("OUT_OF_RANGE:   "); Serial.print(OUT_OF_RANGE);   Serial.println(" mm");
   Serial.print("SENSOR_TIMEOUT: "); Serial.print(SENSOR_TIMEOUT); Serial.println(" ms");
+  Serial.println("Sensor: E18-D80NK (active LOW output)");
 }
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
   static unsigned long lastMeasure = 0;
+  static bool lastDetected          = false;
   unsigned long now = millis();
 
   // ── 1. Sensor read ────────────────────────────────────────────────────────
   if (now - lastMeasure >= MEASURE_INTERVAL) {
     lastMeasure = now;
 
-    unsigned int mm  = readDistanceMM();
-    bool inRange     = (mm != 0xFFFF && mm < OUT_OF_RANGE);
+    bool detected = isObjectDetected();
 
-    if (inRange) {
-      displayValue = mm;
+    if (detected) {
+      displayValue = 0;
       showDash     = false;
 
-      // (Re)start the LED timer on every fresh in-range reading
+      // (Re)start the LED timer on every fresh detection
       ledActive = true;
       ledOnAt   = now;
       digitalWrite(ONBOARD_LED, HIGH);
 
-      Serial.print("Distance mm: ");
-      Serial.println(mm);
+      if (!lastDetected) {
+        Serial.println("Object detected");
+      }
     } else {
       showDash = true;
-      Serial.println("Out of range");
+
+      if (lastDetected) {
+        Serial.println("No object");
+      }
     }
+
+    lastDetected = detected;
   }
 
   // ── 2. LED timeout check ──────────────────────────────────────────────────
