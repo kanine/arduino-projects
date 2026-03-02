@@ -1,58 +1,80 @@
-[PROJECT]
-4-digit 7-seg (5641AS) + 74HC595 + Arduino Mega 2560
-- Digit select is ACTIVE LOW (digit turns ON when its DIG pin is grounded)
-- Segments are driven by 74HC595 through 220Ω resistors
-- Display is multiplexed in software (one digit at a time, fast refresh)
+# Counter 00–99 Wiring (Arduino Mega 2560)
 
-[PARTS LIST]
-1 x Arduino Model: Mega 2560
-1 x 4-digit 7-seg Model: 5641AS
-1 x Integrated Circuit Model: 74HC595
-8 x 220Ω Resistors
-1 x Breadboard (Large)
-20+ x Jumper Wires
+This document describes the wiring for a **4-digit 7-segment display (5641AS, common cathode)** driven via a **74HC595** shift register, used to display a 2-digit counter (00–99).
 
-[POWER]
-MEGA_5V  -> BREADBOARD_+RAIL
-MEGA_GND -> BREADBOARD_-RAIL
+## Board
 
-BREADBOARD_+RAIL (TOP) -> BREADBOARD_+RAIL (BOTTOM)   (if rails split)
-BREADBOARD_-RAIL (TOP) -> BREADBOARD_-RAIL (BOTTOM)   (if rails split)
+- **Board:** Arduino Mega 2560
+- **Logic level:** 5V
 
-[IC: 74HC595 POWER/CONTROL]
-74HC595_PIN16 (VCC)    -> +5V
-74HC595_PIN8  (GND)    -> GND
-74HC595_PIN10 (MR/SRCLR)-> +5V     (must be HIGH, else chip held in reset)
-74HC595_PIN13 (OE)     -> GND      (must be LOW, else outputs disabled)
+## Pin Assignment Summary
 
-[IC: 74HC595 <-> ARDUINO CONTROL LINES]
-MEGA_D8   -> 74HC595_PIN14 (DS / DATA)
-MEGA_D10  -> 74HC595_PIN11 (SHCP / CLOCK)
-MEGA_D9   -> 74HC595_PIN12 (STCP / LATCH)
+### Outputs
 
-[DISPLAY: 5641AS PINOUT (FROM YOUR DIAGRAM)]
-TOP ROW PINS:  12=D1, 11=A, 10=F, 9=D2, 8=D3, 7=B
-BOTTOM ROW:     1=E,  2=D,  3=DP, 4=C, 5=G, 6=D4
+| Signal | Mega Pin |
+|---|---|
+| DATA | D8 |
+| CLK | D10 |
+| LATCH | D9 |
+| DIG1 | D2 |
+| DIG2 | D3 |
+| DIG3 | D4 |
+| DIG4 | D5 |
 
-[DIGIT SELECT (ACTIVE LOW)]
-MEGA_D2 -> DISPLAY_PIN12 (D1 / leftmost digit)
-MEGA_D3 -> DISPLAY_PIN9  (D2)
-MEGA_D4 -> DISPLAY_PIN8  (D3)
-MEGA_D5 -> DISPLAY_PIN6  (D4 / rightmost digit)
+## Components
 
-[SEGMENTS: 74HC595 OUTPUTS -> (220Ω) -> DISPLAY SEGMENT PINS]
-# NOTE: each line must have ONE 220Ω resistor in series.
+| Ref | Value / Part | Notes |
+|---|---|---|
+| U1 | 74HC595 | Shift register |
+| DSP | 5641AS 4-digit 7-segment | Common cathode |
+| R1-R8 | 220R each | Segment current limiting (A, B, C, D, E, F, G, DP) |
 
-74HC595_PIN15 (Q0) -> 220R -> DISPLAY_PIN11 (A)
-74HC595_PIN1  (Q1) -> 220R -> DISPLAY_PIN7  (B)
-74HC595_PIN2  (Q2) -> 220R -> DISPLAY_PIN4  (C)
-74HC595_PIN3  (Q3) -> 220R -> DISPLAY_PIN2  (D)
-74HC595_PIN4  (Q4) -> 220R -> DISPLAY_PIN1  (E)
-74HC595_PIN5  (Q5) -> 220R -> DISPLAY_PIN10 (F)
-74HC595_PIN6  (Q6) -> 220R -> DISPLAY_PIN5  (G)
-74HC595_PIN7  (Q7) -> 220R -> DISPLAY_PIN3  (DP)
+## Wiring
 
-[NOTES / CHECKS]
-- If nothing lights: verify 74HC595 OE(pin13)=GND and MR(pin10)=+5V
-- If random segments: verify LATCH is MEGA_D9 -> 74HC595 pin12
-- If a specific segment never lights: check the resistor + breadboard row alignment for that segment line
+### 1) Power
+
+| From | To | Purpose |
+|---|---|---|
+| 5V | U1.PIN16 | 74HC595 VCC |
+| GND | U1.PIN8 | 74HC595 GND |
+| 5V | U1.PIN10 | MR/SRCLR held HIGH (no reset) |
+| GND | U1.PIN13 | OE held LOW (outputs enabled) |
+
+### 2) Arduino -> 74HC595 Control Lines
+
+| Mega Pin | 74HC595 Pin | Label |
+|---|---|---|
+| D8 | U1.PIN14 | DS / DATA |
+| D10 | U1.PIN11 | SHCP / CLOCK |
+| D9 | U1.PIN12 | STCP / LATCH |
+
+### 3) 74HC595 Outputs -> Resistors -> Display Segments
+
+| 74HC595 | Resistor | Display Pin | Segment |
+|---|---|---|---|
+| U1.PIN15 (Q0) | R1 | DSP.PIN11 | A |
+| U1.PIN1 (Q1) | R2 | DSP.PIN7 | B |
+| U1.PIN2 (Q2) | R3 | DSP.PIN4 | C |
+| U1.PIN3 (Q3) | R4 | DSP.PIN2 | D |
+| U1.PIN4 (Q4) | R5 | DSP.PIN1 | E |
+| U1.PIN5 (Q5) | R6 | DSP.PIN10 | F |
+| U1.PIN6 (Q6) | R7 | DSP.PIN5 | G |
+| U1.PIN7 (Q7) | R8 | DSP.PIN3 | DP |
+
+### 4) Digit Select (Active LOW)
+
+| Mega Pin | Display Pin | Digit |
+|---|---|---|
+| D2 | DSP.PIN12 | DIG1 (leftmost) |
+| D3 | DSP.PIN9 | DIG2 |
+| D4 | DSP.PIN8 | DIG3 |
+| D5 | DSP.PIN6 | DIG4 (rightmost) |
+
+## Notes
+
+- Segment bit order in the shift-register byte: `bit0=A`, `bit1=B`, `...`, `bit6=G`, `bit7=DP`.
+- The display is common-cathode: digit pin `LOW = ON`, `HIGH = OFF`.
+- Counter rolls over from 99 to 00; only the two rightmost digits (DIG3 and DIG4) are used.
+- If nothing lights: verify 74HC595 OE (pin 13) = GND and MR (pin 10) = +5V.
+- If random segments: verify LATCH is MEGA D9 -> 74HC595 pin 12.
+- If a specific segment never lights: check the resistor and breadboard row alignment for that segment line.
