@@ -31,8 +31,8 @@ const bool          DEBUG_SENSOR_RAW = true;   // print raw D6 state to Serial
 const unsigned long DEBUG_INTERVAL   = 200;    // ms between debug lines
 
 // ── Sensor logic options ──────────────────────────────────────────────────────
-const bool SENSOR_ACTIVE_LOW   = false;   // E18 default: LOW means detected
-const bool USE_INTERNAL_PULLUP = true;   // experiment mode; keep external 10k if present
+const bool SENSOR_ACTIVE_LOW   = true;   // E18 is active LOW — LOW means detected
+const bool USE_INTERNAL_PULLUP = false;  // external 10k pull-up already handles this
 
 // ── Segment table: bit0=A … bit6=G, bit7=DP ──────────────────────────────────
 const unsigned char table[] = {
