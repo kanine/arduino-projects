@@ -36,6 +36,8 @@ All ESP32 sketches that include `ota_core.h` support wireless firmware uploads v
 
 ### First flash (USB)
 
+> **New to Arduino or connecting a board for the first time?** [Arduino IDE 2](https://www.arduino.cc/en/software) is the best starting point. It handles driver installation, board detection, and port selection through a GUI — much friendlier than the CLI for initial hardware bringup or if you're new to microcontroller programming.
+
 ```bash
 arduino-cli upload --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 ESP32_dev/otablink
 ```
