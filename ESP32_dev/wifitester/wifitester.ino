@@ -14,6 +14,9 @@
 #include <time.h>
 #include "secrets.h"
 
+// ── User parameters ───────────────────────────────────────────────────────────
+static const uint8_t LED_PIN = 2;   // onboard blue LED (GPIO2, active HIGH)
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 static const char* NTP_SERVER    = "pool.ntp.org";
 static const long  GMT_OFFSET_S  = 0;    // UTC; adjust for local timezone if needed
@@ -29,6 +32,15 @@ static unsigned long lastReconnect = 0;
 static bool          timeSynced    = false;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+static void blinkLed(int times) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(120);
+    digitalWrite(LED_PIN, LOW);
+    if (i < times - 1) delay(120);
+  }
+}
+
 static bool connectWiFi() {
   Serial.printf("Connecting to SSID: %s\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
@@ -100,6 +112,7 @@ static void doPoll() {
     Serial.printf("Resolved %s -> %s\n", host.c_str(), resolved.toString().c_str());
   } else {
     Serial.printf("DNS failed for: %s\n", host.c_str());
+    blinkLed(3);
     return;
   }
 
@@ -110,6 +123,7 @@ static void doPoll() {
     Serial.printf("TCP connect failed on port %u — nothing listening there.\n", port);
     Serial.println("  Check: is the server running? Is port forwarding set up?");
     probe.stop();
+    blinkLed(3);
     return;
   }
   probe.stop();
@@ -140,14 +154,17 @@ static void doPoll() {
   }
   http.setTimeout(10000);
 
+  blinkLed(1);
   int code = http.GET();
   if (code > 0) {
     Serial.printf("HTTP %d\n", code);
+    blinkLed(2);
     if (code == HTTP_CODE_OK) {
       Serial.println(http.getString());
     }
   } else {
     Serial.printf("HTTP error: %s\n", http.errorToString(code).c_str());
+    blinkLed(3);
     if (isHttps) {
       char sslErr[256] = {0};
       secureClient.lastError(sslErr, sizeof(sslErr));
@@ -162,6 +179,8 @@ static void doPoll() {
 // ── Setup ─────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
   delay(500);
 
   Serial.println("\n── WiFi Tester ──────────────────────────────────────");
