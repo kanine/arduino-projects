@@ -132,7 +132,7 @@ Copy `bash/.env.example` to `bash/.env` and set your network and port config bef
 
 ## Requirements
 
-> **Environment:** This project was developed on **Windows with WSL2 (Ubuntu) and VS Code** using the [Arduino for VS Code](https://marketplace.visualstudio.com/items?itemName=vsciot-vscode.vscode-arduino) extension and the Claude Code CLI. All shell scripts and `arduino-cli` commands run inside WSL. The workflow is equally compatible with native Linux or macOS — no Windows-specific tools are required.
+> **Environment:** This project was developed on **Windows with WSL2 (Ubuntu) and VS Code** with the Claude Code CLI. All shell scripts and `arduino-cli` commands run inside WSL. The workflow is equally compatible with native Linux or macOS — no Windows-specific tools are required.
 
 ### arduino-cli
 
