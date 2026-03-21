@@ -4,12 +4,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Building and Uploading
 
-There is no CLI build system. Sketches are compiled and uploaded via **Arduino IDE 2**. Open the `.ino` file directly in Arduino IDE 2, select the correct board and port, then use Sketch > Upload.
+### Preferred: deploy script (CLI, all-in-one)
 
-For command-line workflows, `arduino-cli` can be used if installed:
 ```bash
-arduino-cli compile --fqbn arduino:avr:mega path/to/sketch/
-arduino-cli upload  --fqbn arduino:avr:mega -p /dev/ttyUSB0 path/to/sketch/
+bash bash/deploy.sh <sketch_name>          # sync + compile + upload
+bash bash/deploy.sh <sketch_name> --no-sync   # skip IDE sync
+bash bash/deploy.sh <sketch_name> --no-upload # compile only
+bash bash/deploy.sh <sketch_name> --port <ip_or_tty>  # override port
+```
+
+The script infers the board and upload method from the sketch path:
+- `ESP32_dev/*` → `esp32:esp32:esp32`, OTA upload over network
+- `Mega_2560/*` → `arduino:avr:mega`, serial upload via USB
+
+Upload targets and FQBNs are configured in `bash/.env` (copy from `bash/.env.example`).
+
+### Alternative: Arduino IDE 2
+
+Open the `.ino` file directly in Arduino IDE 2, select the correct board and port, then use Sketch > Upload. Use `bash/sync_to_ide.sh <sketch_name>` to push files to the IDE directory first.
+
+### arduino-cli directly
+
+```bash
+# ESP32 – compile
+arduino-cli compile --fqbn esp32:esp32:esp32 ESP32_dev/<sketch>/
+
+# ESP32 – OTA upload
+arduino-cli upload --fqbn esp32:esp32:esp32 \
+  --port <ip> --protocol network \
+  --upload-field password= \
+  ESP32_dev/<sketch>/
+
+# Mega – compile + upload via USB
+arduino-cli compile --fqbn arduino:avr:mega Mega_2560/<path>/<sketch>/
+arduino-cli upload  --fqbn arduino:avr:mega -p /dev/ttyUSB0 Mega_2560/<path>/<sketch>/
 ```
 
 Serial monitor baud rates in use: **19200** (Mega 2560 projects), **115200** (ESP32 projects).
