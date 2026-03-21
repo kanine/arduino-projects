@@ -42,6 +42,47 @@ arduino-cli upload  --fqbn arduino:avr:mega -p /dev/ttyUSB0 Mega_2560/<path>/<sk
 
 Serial monitor baud rates in use: **19200** (Mega 2560 projects), **115200** (ESP32 projects).
 
+## Creating a New Sketch
+
+Use `bash/new_sketch.sh` to scaffold a new sketch. It creates the folder, `.ino`, `docs/wiring.md`, and optionally copies `ota_core.h` and `secrets.h`.
+
+```bash
+# Non-interactive (all args supplied — use this form when invoked by Claude):
+bash bash/new_sketch.sh --name mysketch --board esp32 --ota
+bash bash/new_sketch.sh --name mysketch --board esp32 --no-ota
+bash bash/new_sketch.sh --name mysketch --board mega
+bash bash/new_sketch.sh --name mysketch --board mega --category 4digits
+
+# Interactive (prompts for missing values — use when run by the user directly):
+bash bash/new_sketch.sh
+```
+
+When the user asks to "create a new sketch" without specifying name/board/OTA:
+- Ask: sketch name, board (esp32/mega), OTA support (yes/no, ESP32 only)
+- Then run the non-interactive form with all args supplied
+
+## OTA Core (`ota_core.h`)
+
+`ESP32_dev/otacore/ota_core.h` is a header-only WiFi + OTA module. Copy it into any ESP32 sketch folder to get OTA support with three lines of integration:
+
+```cpp
+#define OTA_LED_PIN 2   // optional
+#include "ota_core.h"
+
+void setup() { otaCoreSetup(); }
+void loop()  { otaCoreHandle(); if (!otaCoreReady()) return; /* sketch logic */ }
+```
+
+Config via `#define` before the include (all optional):
+
+| Define | Default | Effect |
+|---|---|---|
+| `OTA_LED_PIN` | _(none)_ | GPIO for status LED blink |
+| `OTA_WIFI_TIMEOUT_MS` | `15000` | WiFi connect timeout |
+| `OTA_RECONNECT_MS` | `5000` | Reconnect retry interval |
+
+Credentials (`WIFI_SSID`, `WIFI_PASSWORD`, `OTA_HOSTNAME`, optional `OTA_PASSWORD`) come from `secrets.h`.
+
 ## Project Structure
 
 This is a monorepo. Each subfolder under a board-family directory is one self-contained project. Projects must not share or cross-reference files with sibling folders.
@@ -56,6 +97,10 @@ arduino-projects/
       counter-00-99/          # Button counter on 4-digit display (tested.ok)
       counter-0-9/            # Single-digit counter
   ESP32_dev/
+    otacore/                  # OTA module source + demo sketch
+      ota_core.h              # header-only OTA+WiFi — copy into new sketches
+      otacore.ino             # reference/demo sketch
+    otabasic/                 # OTA-enabled bringup sketch (tested.ok)
     sketch_mar20a/            # Basic ESP32 hello-world sketch
   docs/
     wiring-notation.md        # ATN-IO v3 format spec
