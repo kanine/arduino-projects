@@ -3,6 +3,47 @@
 Target: ESP32 WROOM / Dev Module — 3.3 V logic, Xtensa LX6 dual-core, Arduino-ESP32 core.
 
 **Source:** [ESP32 Datasheet (Espressif)](https://documentation.espressif.com/esp32_datasheet_en.pdf)
+**Pinout reference:** [ESP32-WROOM-32 Pinout — Last Minute Engineers](https://lastminuteengineers.com/esp32-wroom-32-pinout-reference/)
+
+---
+
+## Elegoo ESP32 WROOM Board Labels
+
+The Elegoo ESP32 WROOM dev board silkscreen uses a `D`-prefix for GPIO pins. The mapping is **1:1** — `D`-number equals GPIO number.
+
+| Board label | GPIO | Key function |
+|---|---|---|
+| D2 | GPIO2 | Onboard blue LED (active HIGH) |
+| D4 | GPIO4 | General I/O |
+| D5 | GPIO5 | VSPI CS / strapping pin |
+| D12 | GPIO12 | Strapping — must be LOW at boot |
+| D13 | GPIO13 | HSPI MOSI |
+| D14 | GPIO14 | HSPI CLK |
+| D15 | GPIO15 | Strapping / HSPI CS |
+| D18 | GPIO18 | VSPI CLK |
+| D19 | GPIO19 | VSPI MISO |
+| D21 | GPIO21 | **I2C SDA (default)** |
+| D22 | GPIO22 | **I2C SCL (default)** |
+| D23 | GPIO23 | VSPI MOSI |
+| D25 | GPIO25 | DAC1 / ADC2_CH8 |
+| D26 | GPIO26 | DAC2 / ADC2_CH9 |
+| D27 | GPIO27 | ADC2_CH7 |
+| D32 | GPIO32 | ADC1_CH4 / Touch9 |
+| D33 | GPIO33 | ADC1_CH5 / Touch8 |
+| D34 | GPIO34 | ADC1_CH6 — input only |
+| D35 | GPIO35 | ADC1_CH7 — input only |
+| RX2 | GPIO16 | UART2 RX |
+| TX2 | GPIO17 | UART2 TX |
+| RX0 | GPIO3 | UART0 RX (USB serial) |
+| TX0 | GPIO1 | UART0 TX (USB serial) |
+| VN | GPIO39 | ADC1_CH3 — input only |
+| VP | GPIO36 | ADC1_CH0 — input only |
+| 3V3 | — | 3.3 V regulated output |
+| VIN | — | 5–12 V input |
+| GND | — | Ground |
+| EN | — | Chip enable (active HIGH) |
+
+> GPIO6–11 are not broken out — they are internally connected to SPI flash.
 
 ---
 
