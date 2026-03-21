@@ -2,6 +2,8 @@
 
 Target: ESP32 WROOM / Dev Module — 3.3 V logic, Xtensa LX6 dual-core, Arduino-ESP32 core.
 
+**Source:** [ESP32 Datasheet (Espressif)](https://documentation.espressif.com/esp32_datasheet_en.pdf)
+
 ---
 
 ## Hardware Specs
