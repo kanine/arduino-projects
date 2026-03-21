@@ -1,46 +1,167 @@
 # Arduino Projects Monorepo
 
-This repository is a monorepo of self-contained Arduino projects intended for Arduino IDE 2. All of these are a work in progress as I experiment, I'll make an effort to put a tested.ok to indicate that the project should work, but please do your own checking and validation.
+A collection of self-contained Arduino sketches for **ESP32** and **Arduino Mega 2560**, with a focus on clean code patterns, wireless OTA firmware updates, and a reproducible CLI-based deploy workflow.
 
-## Project Structure
-- Each sub-folder is one complete project.
-- Each project should contain its own `.ino` entry sketch and any local assets needed by that project.
-- Projects should not depend on files from sibling folders unless explicitly planned.
+> All projects are works in progress. A `tested.ok` marker in the folder name or project listing indicates the sketch has been verified on real hardware.
 
-Example layout:
+---
 
-```text
-arduino-projects/
-  Uno/
-    Uno.ino
-  ESP32/
-    ESP32.ino
-  Nano_BLE/
-    Nano_BLE.ino
+## What's in this repo
+
+### ESP32
+
+| Sketch | Description | OTA |
+|---|---|---|
+| [otablink](ESP32_dev/otablink/) | WiFi + OTA bringup — confirms connectivity with a 3 s LED hold then 1 Hz blink | ✅ |
+| [otabasic](ESP32_dev/otabasic/) | Minimal WiFi + OTA server — use to recover a board or as a base for new projects | ✅ |
+| [otacore](ESP32_dev/otacore/) | Reference sketch and source for `ota_core.h`, a reusable OTA module | ✅ |
+| [wifitester](ESP32_dev/wifitester/) | Connects to WiFi, syncs NTP, polls an HTTP/HTTPS endpoint on a timer | ❌ |
+| [sketch_mar20a](ESP32_dev/sketch_mar20a/) | Hello-world — prints to serial every second | ❌ |
+
+### Mega 2560
+
+| Sketch | Description | Tested |
+|---|---|---|
+| [sonic-mm-display](Mega_2560/4digits/sonic-mm-display/) | HC-SR04 ultrasonic sensor → 4-digit 7-segment display, mm readout | — |
+| [sonic-mm-detect](Mega_2560/4digits/sonic-mm-detect/) | HC-SR04 detection with LED timeout | ✅ |
+| [sonic-mm-detect-light](Mega_2560/4digits/sonic-mm-detect-light/) | E18-D80NK IR sensor variant | wip |
+| [counter-00-99](Mega_2560/4digits/counter-00-99/) | Button-controlled 0–99 counter on 4-digit display | ✅ |
+| [counter-0-9](Mega_2560/4digits/counter-0-9/) | Single-digit button counter | — |
+
+---
+
+## OTA Firmware Updates (ESP32)
+
+All ESP32 sketches that include `ota_core.h` support wireless firmware uploads via **ArduinoOTA**. No USB cable needed after the first flash.
+
+### First flash (USB)
+
+```bash
+arduino-cli upload --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 ESP32_dev/otablink
 ```
 
-## Folder Naming Convention
-- Use the board family as the folder name.
-- Prefer consistent `Pascal_Case` for multi-word names.
-- Keep names short and architecture-specific.
+### All subsequent uploads (OTA over WiFi)
 
-## Popular Boards and Recommended Folder Names
+```bash
+bash bash/deploy.sh otablink
+```
 
-| Board / Family | Recommended Folder Name |
-|---|---|
-| Arduino Uno (ATmega328P) | `Uno` |
-| Arduino Mega 2560 | `Mega_2560` |
-| Arduino Nano (classic) | `Nano` |
-| Arduino Nano Every | `Nano_Every` |
-| Arduino Nano 33 BLE / BLE Sense | `Nano_BLE` |
-| ESP32 Dev Module / WROOM / S3 variants | `ESP32` |
-| ESP8266 (NodeMCU, D1 mini) | `ESP8266` |
-| Raspberry Pi Pico / Pico W (RP2040) | `RP2040` |
-| Arduino Leonardo | `Leonardo` |
-| Arduino Due | `Due` |
+The deploy script auto-discovers the board on the network, compiles, and uploads — one command from anywhere in the repo.
 
-## Development Standards (Arduino IDE 2)
-- Use modern C++ supported by Arduino IDE 2 toolchains.
-- Prefer non-blocking code patterns (`millis()` scheduling, state machines).
-- Avoid `delay()` in normal control flow.
-- Install and manage dependencies through Arduino IDE 2 Library Manager when possible.
+### How it works
+
+When the board boots it connects to WiFi and calls `ArduinoOTA.begin()`. The Arduino IDE and `arduino-cli` detect it via mDNS and can push a new binary wirelessly. If WiFi drops, the sketch reconnects automatically and re-registers for OTA.
+
+---
+
+## Reusable OTA Module (`ota_core.h`)
+
+[`ESP32_dev/otacore/ota_core.h`](ESP32_dev/otacore/ota_core.h) is a header-only drop-in that handles WiFi connection, reconnection, and ArduinoOTA — copy it into any sketch folder and add three lines:
+
+```cpp
+#define OTA_LED_PIN 2        // optional status LED
+#include "ota_core.h"
+
+void setup() { otaCoreSetup(); }
+void loop()  { otaCoreHandle(); if (!otaCoreReady()) return; /* your code */ }
+```
+
+Credentials and hostname come from `secrets.h` (gitignored, copy from `secrets.h.example`).
+
+---
+
+## Creating a New Sketch
+
+```bash
+# Guided interactive prompt
+bash bash/new_sketch.sh
+
+# Or fully non-interactive
+bash bash/new_sketch.sh --name myproject --board esp32 --ota
+bash bash/new_sketch.sh --name myproject --board mega --category 4digits
+```
+
+This scaffolds the folder, skeleton `.ino`, `secrets.h`, `ota_core.h` (if OTA), and a `docs/wiring.md` stub in ATN-IO v3 format.
+
+---
+
+## Project Structure
+
+```
+arduino-projects/
+  ESP32_dev/
+    otacore/            # ota_core.h source + reference sketch
+    otablink/           # OTA bringup + blink demo
+    otabasic/           # minimal OTA server / recovery sketch
+    wifitester/         # HTTP/HTTPS endpoint tester
+    sketch_mar20a/      # hello-world
+  Mega_2560/
+    4digits/
+      sonic-mm-display/ # HC-SR04 → 7-seg display
+      sonic-mm-detect/  # HC-SR04 detect + LED
+      counter-00-99/    # button counter
+      counter-0-9/      # single-digit counter
+  bash/
+    deploy.sh           # compile + upload (OTA or USB)
+    new_sketch.sh       # scaffold a new sketch
+    sync_to_ide.sh      # sync files to Arduino IDE directory
+  docs/
+    wiring-notation.md  # ATN-IO v3 wiring doc format spec
+```
+
+Each sketch is fully self-contained — no cross-folder dependencies.
+
+---
+
+## Deploy Script
+
+`bash/deploy.sh` wraps `arduino-cli` to handle compile and upload in one command. Board family and upload method are inferred from the sketch path.
+
+```bash
+bash bash/deploy.sh <sketch_name>              # sync + compile + upload
+bash bash/deploy.sh <sketch_name> --no-sync    # skip Arduino IDE sync
+bash bash/deploy.sh <sketch_name> --no-upload  # compile only
+bash bash/deploy.sh <sketch_name> --port <ip>  # override upload target
+```
+
+Copy `bash/.env.example` to `bash/.env` and set your network and port config before first use.
+
+---
+
+## Requirements
+
+### arduino-cli
+
+```bash
+# Install
+curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+
+# ESP32 core
+arduino-cli config add board_manager.additional_urls \
+  https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32
+
+# Mega core
+arduino-cli core install arduino:avr
+```
+
+### Arduino IDE 2
+
+Open any `.ino` file directly. Use `bash/sync_to_ide.sh <sketch_name>` to push files from this repo to your IDE sketchbook directory first.
+
+---
+
+## Coding Standards
+
+- `millis()`-based scheduling and state machines — no `delay()` in normal control flow
+- `const`/`constexpr` for configuration values
+- Sections separated by `// ── Section ──` banner comments
+- User-tunable parameters at the top of the file under `// ── User parameters`
+- Every project has a `docs/wiring.md` in [ATN-IO v3](docs/wiring-notation.md) format
+
+---
+
+## Wiring Documentation
+
+Each project includes a `docs/wiring.md` describing the full electrical schematic in [ATN-IO v3](docs/wiring-notation.md) format — a plain-text notation for pin assignments and wiring paths.
