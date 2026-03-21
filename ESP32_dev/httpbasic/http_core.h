@@ -7,8 +7,10 @@
 //   #define HTTP_URL "https://your.webhook/endpoint"
 //
 // Optional defines:
-//   #define HTTP_LED_PIN    2      // GPIO to blink 3× on failure
-//   #define HTTP_TIMEOUT_MS 5000   // request timeout ms (default: 5000)
+//   #define HTTP_LED_PIN    2                    // GPIO to blink 3× on failure
+//   #define HTTP_TIMEOUT_MS 5000                 // request timeout ms (default: 5000)
+//   #define HTTP_CA_CERT    "-----BEGIN CERT..."  // root CA for TLS verification;
+//                                                //   omit to skip verification
 //
 // Requires WiFi to be already connected (pair with ota_core.h).
 //
@@ -22,6 +24,7 @@
 #pragma once
 
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 #ifndef HTTP_TIMEOUT_MS
 #  define HTTP_TIMEOUT_MS 5000UL
@@ -45,8 +48,18 @@ static void _httpBlink(int) {}
 // Expects the server to reply with JSON containing "success": true.
 // Returns true on confirmed success, false otherwise.
 static bool httpPost(const char* json) {
+  WiFiClientSecure client;
+
+#ifdef HTTP_CA_CERT
+  client.setCACert(HTTP_CA_CERT);
+  Serial.println("[http] TLS: using CA certificate");
+#else
+  client.setInsecure();
+  Serial.println("[http] TLS: no CA cert — skipping verification");
+#endif
+
   HTTPClient http;
-  http.begin(HTTP_URL);
+  http.begin(client, HTTP_URL);
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(HTTP_TIMEOUT_MS);
 
@@ -56,6 +69,9 @@ static bool httpPost(const char* json) {
 
   if (code <= 0) {
     Serial.printf("[http] Error: %s\n", HTTPClient::errorToString(code).c_str());
+    char sslErr[256] = {0};
+    client.lastError(sslErr, sizeof(sslErr));
+    if (strlen(sslErr) > 0) Serial.printf("[http] SSL error: %s\n", sslErr);
     http.end();
     _httpBlink(3);
     return false;
