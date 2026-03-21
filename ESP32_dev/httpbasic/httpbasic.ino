@@ -39,9 +39,18 @@ void loop() {
   if (now - lastPost >= INTERVAL_MS) {
     lastPost = now;
 
-    char json[128];
+    float cpu_temp_c = temperatureRead();
+    uint32_t uptime_s = now / 1000;
+    uint32_t days  = uptime_s / 86400;
+    uint32_t hours = (uptime_s % 86400) / 3600;
+    uint32_t mins  = (uptime_s % 3600) / 60;
+    uint32_t secs  = uptime_s % 60;
+    char uptime_fmt[20];
+    snprintf(uptime_fmt, sizeof(uptime_fmt), "%ud %02u:%02u:%02u", days, hours, mins, secs);
+    char json[200];
     snprintf(json, sizeof(json),
-      "{\"source\":\"httpbasic\",\"uptime_ms\":%lu}", now);
+      "{\"app\":\"httpbasic\",\"host\":\"%s\",\"uptime_ms\":%lu,\"uptime\":\"%s\",\"cpu_temp_c\":%.1f}",
+      OTA_HOSTNAME, now, uptime_fmt, cpu_temp_c);
 
     Serial.printf("[main] posting: %s\n", json);
     bool ok = httpPost(json);
