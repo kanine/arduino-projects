@@ -26,21 +26,37 @@ static float    pollsPerMinute = POLLS_PER_MINUTE;
 static float    windowSeconds  = WINDOW_SECONDS;
 static uint32_t pollMs;    // derived: 60000 / pollsPerMinute, clamped to 20 ms floor
 static uint32_t batchMs;   // derived: windowSeconds * 1000
+static uint16_t batchCap;  // derived: max readings to keep in one batch window
 
 constexpr uint16_t MAX_READINGS = 500;   // hard cap; each reading = 6 bytes
+
+// ── recomputeDerivedTiming ───────────────────────────────────────────────────
+// Keeps derived runtime timing values and per-window sample cap in sync with
+// current pollsPerMinute/windowSeconds configuration.
+static void recomputeDerivedTiming() {
+  uint32_t rawPoll = (uint32_t)(60000.0f / pollsPerMinute);
+  pollMs = rawPoll < 20 ? 20 : rawPoll;
+
+  batchMs = (uint32_t)(windowSeconds * 1000.0f);
+  if (batchMs == 0) batchMs = 1;
+
+  uint32_t cap = batchMs / pollMs;
+  if (cap == 0) cap = 1;
+  if (cap > MAX_READINGS) cap = MAX_READINGS;
+  batchCap = (uint16_t)cap;
+}
 
 // ── applyServerConfig ─────────────────────────────────────────────────────────
 // Parses the "config" block from a server response and updates runtime timing
 // variables if the server has sent new values.
 static void applyServerConfig(const String& body) {
+  bool changed = false;
   int idx = body.indexOf("\"polls_per_minute\":");
   if (idx >= 0) {
     float v = body.substring(idx + 19).toFloat();
     if (v > 0 && v != pollsPerMinute) {
       pollsPerMinute = v;
-      uint32_t raw = (uint32_t)(60000.0f / pollsPerMinute);
-      pollMs = raw < 20 ? 20 : raw;
-      Serial.printf("[cfg] polls_per_minute -> %.1f  poll_ms=%u\n", pollsPerMinute, pollMs);
+      changed = true;
     }
   }
   idx = body.indexOf("\"window_seconds\":");
@@ -48,9 +64,14 @@ static void applyServerConfig(const String& body) {
     float v = body.substring(idx + 17).toFloat();
     if (v > 0 && v != windowSeconds) {
       windowSeconds = v;
-      batchMs = (uint32_t)(windowSeconds * 1000.0f);
-      Serial.printf("[cfg] window_seconds -> %.1f  batch_ms=%u\n", windowSeconds, batchMs);
+      changed = true;
     }
+  }
+
+  if (changed) {
+    recomputeDerivedTiming();
+    Serial.printf("[cfg] updated ppm=%.1f poll_ms=%u window_s=%.1f batch_ms=%u cap=%u\n",
+                  pollsPerMinute, pollMs, windowSeconds, batchMs, batchCap);
   }
 }
 
@@ -74,8 +95,7 @@ void setup() {
   digitalWrite(OTA_LED_PIN, LOW);
 
   // Initialise derived timing from startup config
-  { uint32_t raw = (uint32_t)(60000.0f / pollsPerMinute); pollMs = raw < 20 ? 20 : raw; }
-  batchMs = (uint32_t)(windowSeconds * 1000.0f);
+  recomputeDerivedTiming();
 
   otaCoreSetup();
 
@@ -97,8 +117,8 @@ void setup() {
     vl53.setTimingBudget(20);          // 20 ms minimum for short mode
     vl53.startRanging();
     sensorOk = true;
-    Serial.printf("[tof] ready — %.1f polls/min (%u ms), %.1f s window, max %u readings\n",
-                  pollsPerMinute, pollMs, windowSeconds, MAX_READINGS);
+    Serial.printf("[tof] ready — %.1f polls/min (%u ms), %.1f s window, cap %u (hard max %u)\n",
+                  pollsPerMinute, pollMs, windowSeconds, batchCap, MAX_READINGS);
   }
 }
 
@@ -135,11 +155,11 @@ static void sendBatch() {
     "{\"app\":\"timeofflightbasic\",\"host\":\"%s\","
     "\"batch_id\":%lu,\"start_time_ms\":%llu,\"end_time_ms\":%llu,"
     "\"uptime\":\"%s\",\"cpu_temp_c\":%.1f,"
-    "\"config\":{\"polls_per_minute\":%.1f,\"window_seconds\":%.1f,\"poll_ms\":%lu},"
+    "\"config\":{\"polls_per_minute\":%.1f,\"window_seconds\":%.1f,\"poll_ms\":%lu,\"batch_cap\":%u},"
     "\"readings\":[",
     OTA_HOSTNAME, batchId, startTs, endTs,
     uptime_fmt, cpu_temp_c,
-    pollsPerMinute, windowSeconds, pollMs);
+    pollsPerMinute, windowSeconds, pollMs, batchCap);
 
   for (uint16_t i = 0; i < readingCount && pos < (int)bufSize - 50; i++) {
     pos += snprintf(json + pos, bufSize - pos,
@@ -153,7 +173,11 @@ static void sendBatch() {
                 batchId, readingCount, startTs, endTs);
   bool ok = httpPost(json);
   Serial.printf("[main] result : %s\n\n", ok ? "success" : "FAILED — check webhook");
-  if (ok) applyServerConfig(httpLastBody);
+  if (ok) {
+    applyServerConfig(httpLastBody);
+    Serial.printf("[cfg] effective ppm=%.1f poll_ms=%u window_s=%.1f batch_ms=%u cap=%u\n",
+                  pollsPerMinute, pollMs, windowSeconds, batchMs, batchCap);
+  }
 
   free(json);
   readingCount = 0;
@@ -172,7 +196,7 @@ void loop() {
     if (vl53.dataReady()) {
       uint32_t d = 0;
       vl53.GetDistance(&d);
-      if (d > 0 && readingCount < MAX_READINGS) {
+      if (d > 0 && readingCount < batchCap) {
         readings[readingCount++] = { (uint64_t)time(nullptr) * 1000ULL + (millis() % 1000), (int16_t)d };
       }
       vl53.clearInterrupt();
@@ -181,7 +205,9 @@ void loop() {
 
   // ── Send batch on interval ────────────────────────────────────────────────
   if (now - lastBatch >= batchMs) {
-    lastBatch = now;
     sendBatch();
+    // Anchor next window after send finishes so config updates (e.g. 5 s)
+    // take effect as observed wall-clock spacing in serial logs.
+    lastBatch = millis();
   }
 }
