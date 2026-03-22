@@ -20,6 +20,7 @@
 //     Returns true when the server responds with {"success": true}.
 //     On network error or missing success field: blinks HTTP_LED_PIN 3×,
 //     logs to serial, and returns false.
+//     Response body is stored in httpLastBody for the caller to inspect.
 
 #pragma once
 
@@ -47,6 +48,9 @@ static void _httpBlink(int) {}
 // Sends json to HTTP_URL via HTTP POST (Content-Type: application/json).
 // Expects the server to reply with JSON containing "success": true.
 // Returns true on confirmed success, false otherwise.
+// The raw response body is stored in httpLastBody after every call.
+static String httpLastBody;
+
 static bool httpPost(const char* json) {
   WiFiClientSecure client;
 
@@ -79,6 +83,7 @@ static bool httpPost(const char* json) {
 
   String body = http.getString();
   http.end();
+  httpLastBody = body;
 
   Serial.printf("[http] %d  response: %s\n", code, body.c_str());
 

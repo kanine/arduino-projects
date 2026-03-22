@@ -21,14 +21,41 @@
 // ── User parameters ───────────────────────────────────────────────────────────
 #include "config.h"
 
-// ── Derived timing ────────────────────────────────────────────────────────────
-constexpr uint32_t _rawPollMs  = (uint32_t)(60000.0f / POLLS_PER_MINUTE);
-constexpr uint32_t POLL_MS     = _rawPollMs < 20 ? 20 : _rawPollMs;  // 20 ms sensor floor
-constexpr uint32_t BATCH_MS    = (uint32_t)(BATCH_SIZE_MIN * 60000.0f);
+// ── Runtime config (initialised from config.h; updated from server responses) ──
+static float    pollsPerMinute = POLLS_PER_MINUTE;
+static float    windowSeconds  = WINDOW_SECONDS;
+static uint32_t pollMs;    // derived: 60000 / pollsPerMinute, clamped to 20 ms floor
+static uint32_t batchMs;   // derived: windowSeconds * 1000
+
 constexpr uint16_t MAX_READINGS = 500;   // hard cap; each reading = 6 bytes
 
+// ── applyServerConfig ─────────────────────────────────────────────────────────
+// Parses the "config" block from a server response and updates runtime timing
+// variables if the server has sent new values.
+static void applyServerConfig(const String& body) {
+  int idx = body.indexOf("\"polls_per_minute\":");
+  if (idx >= 0) {
+    float v = body.substring(idx + 19).toFloat();
+    if (v > 0 && v != pollsPerMinute) {
+      pollsPerMinute = v;
+      uint32_t raw = (uint32_t)(60000.0f / pollsPerMinute);
+      pollMs = raw < 20 ? 20 : raw;
+      Serial.printf("[cfg] polls_per_minute -> %.1f  poll_ms=%u\n", pollsPerMinute, pollMs);
+    }
+  }
+  idx = body.indexOf("\"window_seconds\":");
+  if (idx >= 0) {
+    float v = body.substring(idx + 17).toFloat();
+    if (v > 0 && v != windowSeconds) {
+      windowSeconds = v;
+      batchMs = (uint32_t)(windowSeconds * 1000.0f);
+      Serial.printf("[cfg] window_seconds -> %.1f  batch_ms=%u\n", windowSeconds, batchMs);
+    }
+  }
+}
+
 // ── Reading storage ───────────────────────────────────────────────────────────
-struct Reading { time_t ts; int16_t distance_mm; };
+struct Reading { uint64_t ts_ms; int16_t distance_mm; };
 static Reading  readings[MAX_READINGS];
 static uint16_t readingCount = 0;
 static uint32_t batchId      = 0;
@@ -45,6 +72,10 @@ void setup() {
   delay(1500);   // let monitor connect before first output
   pinMode(OTA_LED_PIN, OUTPUT);
   digitalWrite(OTA_LED_PIN, LOW);
+
+  // Initialise derived timing from startup config
+  { uint32_t raw = (uint32_t)(60000.0f / pollsPerMinute); pollMs = raw < 20 ? 20 : raw; }
+  batchMs = (uint32_t)(windowSeconds * 1000.0f);
 
   otaCoreSetup();
 
@@ -66,8 +97,8 @@ void setup() {
     vl53.setTimingBudget(20);          // 20 ms minimum for short mode
     vl53.startRanging();
     sensorOk = true;
-    Serial.printf("[tof] ready — %u ms poll, %.1f min batch, max %u readings\n",
-                  POLL_MS, BATCH_SIZE_MIN, MAX_READINGS);
+    Serial.printf("[tof] ready — %.1f polls/min (%u ms), %.1f s window, max %u readings\n",
+                  pollsPerMinute, pollMs, windowSeconds, MAX_READINGS);
   }
 }
 
@@ -88,11 +119,11 @@ static void sendBatch() {
            uptime_s % 60);
 
   batchId++;
-  time_t startTs = readings[0].ts;
-  time_t endTs   = readings[readingCount - 1].ts;
+  uint64_t startTs = readings[0].ts_ms;
+  uint64_t endTs   = readings[readingCount - 1].ts_ms;
 
-  // Allocate JSON buffer: header ~300 + each reading ~38 + footer ~3
-  size_t bufSize = 400 + (size_t)readingCount * 42;
+  // Allocate JSON buffer: header ~300 + each reading ~50 + footer ~3
+  size_t bufSize = 400 + (size_t)readingCount * 50;
   char*  json    = (char*)malloc(bufSize);
   if (!json) {
     Serial.println("[main] malloc failed — skipping batch");
@@ -102,26 +133,27 @@ static void sendBatch() {
 
   int pos = snprintf(json, bufSize,
     "{\"app\":\"timeofflightbasic\",\"host\":\"%s\","
-    "\"batch_id\":%lu,\"start_time\":%ld,\"end_time\":%ld,"
+    "\"batch_id\":%lu,\"start_time_ms\":%llu,\"end_time_ms\":%llu,"
     "\"uptime\":\"%s\",\"cpu_temp_c\":%.1f,"
-    "\"config\":{\"polls_per_min\":%.1f,\"batch_size_min\":%.1f,\"poll_ms\":%lu},"
+    "\"config\":{\"polls_per_minute\":%.1f,\"window_seconds\":%.1f,\"poll_ms\":%lu},"
     "\"readings\":[",
-    OTA_HOSTNAME, batchId, (long)startTs, (long)endTs,
+    OTA_HOSTNAME, batchId, startTs, endTs,
     uptime_fmt, cpu_temp_c,
-    (float)POLLS_PER_MINUTE, (float)BATCH_SIZE_MIN, POLL_MS);
+    pollsPerMinute, windowSeconds, pollMs);
 
-  for (uint16_t i = 0; i < readingCount && pos < (int)bufSize - 42; i++) {
+  for (uint16_t i = 0; i < readingCount && pos < (int)bufSize - 50; i++) {
     pos += snprintf(json + pos, bufSize - pos,
-      "%s{\"ts\":%ld,\"distance_mm\":%d}",
+      "%s{\"ts_ms\":%llu,\"distance_mm\":%d}",
       i == 0 ? "" : ",",
-      (long)readings[i].ts, readings[i].distance_mm);
+      readings[i].ts_ms, readings[i].distance_mm);
   }
   snprintf(json + pos, bufSize - pos, "]}");
 
-  Serial.printf("[main] batch #%lu — %u readings  %ld → %ld\n",
-                batchId, readingCount, (long)startTs, (long)endTs);
+  Serial.printf("[main] batch #%lu — %u readings  %llu → %llu\n",
+                batchId, readingCount, startTs, endTs);
   bool ok = httpPost(json);
   Serial.printf("[main] result : %s\n\n", ok ? "success" : "FAILED — check webhook");
+  if (ok) applyServerConfig(httpLastBody);
 
   free(json);
   readingCount = 0;
@@ -135,20 +167,20 @@ void loop() {
   uint32_t now = millis();
 
   // ── Poll sensor ───────────────────────────────────────────────────────────
-  if (sensorOk && now - lastPoll >= POLL_MS) {
+  if (sensorOk && now - lastPoll >= pollMs) {
     lastPoll = now;
     if (vl53.dataReady()) {
       uint32_t d = 0;
       vl53.GetDistance(&d);
       if (d > 0 && readingCount < MAX_READINGS) {
-        readings[readingCount++] = { time(nullptr), (int16_t)d };
+        readings[readingCount++] = { (uint64_t)time(nullptr) * 1000ULL + (millis() % 1000), (int16_t)d };
       }
       vl53.clearInterrupt();
     }
   }
 
   // ── Send batch on interval ────────────────────────────────────────────────
-  if (now - lastBatch >= BATCH_MS) {
+  if (now - lastBatch >= batchMs) {
     lastBatch = now;
     sendBatch();
   }
