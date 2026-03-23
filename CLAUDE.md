@@ -21,6 +21,7 @@ PATH="$PATH:/home/kanine/arduino-local/bin" bash bash/deploy.sh <sketch_name> --
 The script infers the board and upload method from the sketch path:
 - `ESP32_dev/*` → `esp32:esp32:esp32`, OTA upload over network
 - `Mega_2560/*` → `arduino:avr:mega`, serial upload via USB
+- `UnoQ/*` → `arduino:zephyr:<board>`, serial upload via USB (MCU only, no OTA)
 
 Upload targets and FQBNs are configured in `bash/.env` (copy from `bash/.env.example`).
 
@@ -43,6 +44,14 @@ arduino-cli upload --fqbn esp32:esp32:esp32 \
 # Mega – compile + upload via USB
 arduino-cli compile --fqbn arduino:avr:mega Mega_2560/<path>/<sketch>/
 arduino-cli upload  --fqbn arduino:avr:mega -p /dev/ttyUSB0 Mega_2560/<path>/<sketch>/
+
+# Uno Q – one-time core setup
+arduino-cli core update-index
+arduino-cli core install arduino:zephyr
+
+# Uno Q – compile + upload via USB (MCU only, no OTA support)
+arduino-cli compile --fqbn arduino:zephyr:<board> UnoQ/<sketch>/
+arduino-cli upload  --fqbn arduino:zephyr:<board> -p /dev/ttyUSB0 UnoQ/<sketch>/
 ```
 
 Serial monitor baud rates in use: **19200** (Mega 2560 projects), **115200** (ESP32 projects).
@@ -107,6 +116,7 @@ arduino-projects/
       otacore.ino             # reference/demo sketch
     otabasic/                 # OTA-enabled bringup sketch (tested.ok)
     sketch_mar20a/            # Basic ESP32 hello-world sketch
+  UnoQ/                       # Arduino Uno Q projects (arduino:zephyr core, MCU only)
   docs/
     wiring-notation.md        # ATN-IO v3 format spec
 ```
@@ -119,6 +129,7 @@ Determine the active board from the parent folder name (`Mega_2560`, `ESP32_dev`
 
 - **Mega_2560**: AVR ATmega2560, 5V logic, Arduino AVR core. Confirmed working pins per projects: shift register on D8/D9/D10, digit select D2–D5, sensor inputs on D6/D7, onboard LED D13.
 - **ESP32_dev**: ESP32 WROOM, 3.3V logic. Do not assume AVR APIs are available.
+- **UnoQ**: Arduino Uno Q, uses `arduino:zephyr` core (Zephyr RTOS). MCU functionality only — no OTA, no WiFi. Serial upload via USB only. Core must be installed via `arduino-cli core install arduino:zephyr` before first use.
 
 If the board is ambiguous, ask for the target `.ino` path before making architecture-specific suggestions.
 
