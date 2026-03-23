@@ -140,9 +140,17 @@ Copy `bash/.env.example` to `bash/.env` and set your network and port config bef
 # Install (downloads binary to ./bin/arduino-cli)
 curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 
-# Add to PATH — pick one:
-sudo mv bin/arduino-cli /usr/local/bin/          # system-wide (any distro)
-echo 'export PATH="$HOME/arduino-local/bin:$PATH"' >> ~/.profile  # user only (adjust path as needed)
+# Move binary into place
+mv bin/arduino-cli ~/arduino-local/bin/
+
+# Add to PATH (append to ~/.bashrc)
+echo 'export PATH="$PATH:/home/kanine/arduino-local/bin"' >> ~/.bashrc
+
+# Reload shell config
+source ~/.bashrc
+
+# Initialise config (creates ~/.arduino15/arduino-cli.yaml)
+arduino-cli config init
 
 # ESP32 core
 arduino-cli config add board_manager.additional_urls \
@@ -152,6 +160,9 @@ arduino-cli core install esp32:esp32
 
 # Mega core
 arduino-cli core install arduino:avr
+
+# Libraries
+arduino-cli lib install "Adafruit VL53L1X"
 ```
 
 ### Arduino IDE 2
