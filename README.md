@@ -128,6 +128,11 @@ bash bash/deploy.sh <sketch_name> --port <ip>  # override upload target
 
 Copy `bash/.env.example` to `bash/.env` and set your network and port config before first use.
 
+> **WSL2 note:** Non-interactive shells (e.g. terminals launched from an editor) don't source `~/.bashrc`, so `arduino-cli` may not be on the PATH. If you see `arduino-cli: command not found`, prefix the command:
+> ```bash
+> PATH="$PATH:/home/kanine/arduino-local/bin" bash bash/deploy.sh <sketch_name> --no-sync
+> ```
+
 ---
 
 ## Requirements

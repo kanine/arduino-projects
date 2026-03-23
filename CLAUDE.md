@@ -13,6 +13,11 @@ bash bash/deploy.sh <sketch_name> --no-upload # compile only
 bash bash/deploy.sh <sketch_name> --port <ip_or_tty>  # override port
 ```
 
+If `arduino-cli: command not found`, the shell hasn't sourced `~/.bashrc`. Prefix with the explicit path:
+```bash
+PATH="$PATH:/home/kanine/arduino-local/bin" bash bash/deploy.sh <sketch_name> --no-sync
+```
+
 The script infers the board and upload method from the sketch path:
 - `ESP32_dev/*` → `esp32:esp32:esp32`, OTA upload over network
 - `Mega_2560/*` → `arduino:avr:mega`, serial upload via USB
