@@ -21,6 +21,44 @@
 // ── User parameters ───────────────────────────────────────────────────────────
 #include "config.h"
 
+// ── Buzzer ────────────────────────────────────────────────────────────────────
+#define BUZZ_PIN 4
+
+constexpr uint32_t BEEP_MS        = 50;    // on time
+constexpr uint32_t BEEP_GAP_MS    = 125;   // gap between beeps in a sequence
+constexpr uint32_t NO_WIFI_BEEP_MS = 3000; // single-beep repeat while WiFi is down
+
+enum BuzzState : uint8_t { BUZZ_IDLE, BUZZ_ON, BUZZ_GAP };
+static BuzzState buzzState = BUZZ_IDLE;
+static uint8_t   buzzLeft  = 0;
+static uint32_t  buzzTimer = 0;
+
+static void buzzStart(uint8_t count) {
+  if (count == 0 || buzzState != BUZZ_IDLE) return;
+  buzzLeft = count;
+  digitalWrite(BUZZ_PIN, HIGH);
+  buzzState = BUZZ_ON;
+  buzzTimer = millis();
+}
+
+static void buzzHandle() {
+  if (buzzState == BUZZ_IDLE) return;
+  uint32_t now = millis();
+  if (buzzState == BUZZ_ON && now - buzzTimer >= BEEP_MS) {
+    digitalWrite(BUZZ_PIN, LOW);
+    if (--buzzLeft == 0) {
+      buzzState = BUZZ_IDLE;
+    } else {
+      buzzState = BUZZ_GAP;
+      buzzTimer = now;
+    }
+  } else if (buzzState == BUZZ_GAP && now - buzzTimer >= BEEP_GAP_MS) {
+    digitalWrite(BUZZ_PIN, HIGH);
+    buzzState = BUZZ_ON;
+    buzzTimer = now;
+  }
+}
+
 // ── Runtime config (initialised from config.h; updated from server responses) ──
 static float    pollsPerMinute = POLLS_PER_MINUTE;
 static float    windowSeconds  = WINDOW_SECONDS;
@@ -83,9 +121,11 @@ static uint32_t batchId      = 0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 static Adafruit_VL53L1X vl53;
-static bool     sensorOk  = false;
-static uint32_t lastPoll  = 0;
-static uint32_t lastBatch = 0;
+static bool     sensorOk       = false;
+static uint32_t lastPoll       = 0;
+static uint32_t lastBatch      = 0;
+static bool     prevWifiReady  = false;
+static uint32_t noWifiBeepLast = 0;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 void setup() {
@@ -93,6 +133,8 @@ void setup() {
   delay(1500);   // let monitor connect before first output
   pinMode(OTA_LED_PIN, OUTPUT);
   digitalWrite(OTA_LED_PIN, LOW);
+  pinMode(BUZZ_PIN, OUTPUT);
+  digitalWrite(BUZZ_PIN, LOW);
 
   // Initialise derived timing from startup config
   recomputeDerivedTiming();
@@ -186,7 +228,19 @@ static void sendBatch() {
 // ── Loop ──────────────────────────────────────────────────────────────────────
 void loop() {
   otaCoreHandle();
-  if (!otaCoreReady()) return;
+
+  buzzHandle();
+  bool wifiReady = otaCoreReady();
+  if (!prevWifiReady && wifiReady) {
+    buzzStart(2);                        // connected — double beep
+  } else if (!wifiReady && buzzState == BUZZ_IDLE
+             && millis() - noWifiBeepLast >= NO_WIFI_BEEP_MS) {
+    noWifiBeepLast = millis();
+    buzzStart(1);                        // failing — single beep
+  }
+  prevWifiReady = wifiReady;
+
+  if (!wifiReady) return;
 
   uint32_t now = millis();
 

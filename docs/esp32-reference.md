@@ -4,6 +4,7 @@ Target: ESP32 WROOM / Dev Module — 3.3 V logic, Xtensa LX6 dual-core, Arduino-
 
 **Source:** [ESP32 Datasheet (Espressif)](https://documentation.espressif.com/esp32_datasheet_en.pdf)
 **Pinout reference:** [ESP32-WROOM-32 Pinout — Last Minute Engineers](https://lastminuteengineers.com/esp32-wroom-32-pinout-reference/)
+**Board photo:** [docs/images/elegoo-esp32-wroom.jpg](images/elegoo-esp32-wroom.jpg)
 
 ---
 
