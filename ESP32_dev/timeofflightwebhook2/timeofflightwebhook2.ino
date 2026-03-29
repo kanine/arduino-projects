@@ -530,7 +530,7 @@ static PostResult postJson(const char* json) {
     }
     http.addHeader("Content-Type", "application/json");
     http.setTimeout(POST_TIMEOUT_MS);
-    result.statusCode = http.POST((const uint8_t*)json, strlen(json));
+    result.statusCode = http.POST((uint8_t*)json, strlen(json));
     result.transportOk = result.statusCode > 0;
     if (result.transportOk) {
       result.body = http.getString();
@@ -544,7 +544,7 @@ static PostResult postJson(const char* json) {
     }
     http.addHeader("Content-Type", "application/json");
     http.setTimeout(POST_TIMEOUT_MS);
-    result.statusCode = http.POST((const uint8_t*)json, strlen(json));
+    result.statusCode = http.POST((uint8_t*)json, strlen(json));
     result.transportOk = result.statusCode > 0;
     if (result.transportOk) {
       result.body = http.getString();
