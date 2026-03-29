@@ -82,6 +82,7 @@ static bool otaReady = false;
 static wl_status_t lastWiFiStatus = WL_IDLE_STATUS;
 static LedMode ledMode = LED_MODE_IDLE;
 static bool ledIsOn = false;
+static bool speakerEnabledForCurrentMode = false;
 static uint8_t ledFlashesRemaining = 0;
 static uint32_t ledDeadline = 0;
 static VL53L1X sensor;
@@ -174,23 +175,33 @@ static void setLedHardware(bool on) {
   ledIsOn = on;
 }
 
+static void setSpeakerHardware(bool on) {
+  digitalWrite(SPEAKER_PIN, on ? HIGH : LOW);
+}
+
 static void triggerSuccessFlash() {
   ledMode = LED_MODE_PULSE;
+  speakerEnabledForCurrentMode = false;
   ledFlashesRemaining = 1;
   setLedHardware(true);
+  setSpeakerHardware(false);
   ledDeadline = millis() + LED_FLASH_MS;
 }
 
 static void triggerFailureFlash() {
   ledMode = LED_MODE_TRIPLE_FLASH;
-  ledFlashesRemaining = 3;
+  speakerEnabledForCurrentMode = true;
+  ledFlashesRemaining = 2;
   setLedHardware(true);
+  setSpeakerHardware(true);
   ledDeadline = millis() + LED_FLASH_MS;
 }
 
 static void triggerConfigAppliedHold() {
   ledMode = LED_MODE_HOLD;
+  speakerEnabledForCurrentMode = false;
   setLedHardware(true);
+  setSpeakerHardware(false);
   ledDeadline = millis() + LED_HOLD_MS;
 }
 
@@ -202,12 +213,14 @@ static void handleStatusLed() {
 
   if (ledMode == LED_MODE_PULSE) {
     setLedHardware(false);
+    setSpeakerHardware(false);
     ledMode = LED_MODE_IDLE;
     return;
   }
 
   if (ledMode == LED_MODE_HOLD) {
     setLedHardware(false);
+    setSpeakerHardware(false);
     ledMode = LED_MODE_IDLE;
     return;
   }
@@ -215,6 +228,7 @@ static void handleStatusLed() {
   if (ledMode == LED_MODE_TRIPLE_FLASH) {
     if (ledIsOn) {
       setLedHardware(false);
+      setSpeakerHardware(false);
       ledDeadline = now + LED_FLASH_MS;
       return;
     }
@@ -222,9 +236,11 @@ static void handleStatusLed() {
     if (ledFlashesRemaining > 1) {
       ledFlashesRemaining--;
       setLedHardware(true);
+      setSpeakerHardware(speakerEnabledForCurrentMode);
       ledDeadline = now + LED_FLASH_MS;
     } else {
       ledFlashesRemaining = 0;
+      setSpeakerHardware(false);
       ledMode = LED_MODE_IDLE;
     }
   }
@@ -735,7 +751,10 @@ static void trySendBatch() {
     return;
   }
 
-  Serial.printf("[http] sending batch %lu with %u readings\n", (unsigned long)batchId, sendCount);
+  Serial.printf("[http] sending batch %lu with %u readings (test_mode=%s)\n",
+                (unsigned long)batchId,
+                sendCount,
+                WEBHOOK_TEST_MODE ? "true" : "false");
   PostResult result = postJson(payload);
   free(payload);
 
@@ -755,7 +774,11 @@ static void trySendBatch() {
   }
 
   triggerSuccessFlash();
-  applyRuntimeConfig(result.body);
+  if (WEBHOOK_TEST_MODE) {
+    Serial.println("[test] success=true confirmed; runtime config ignored");
+  } else {
+    applyRuntimeConfig(result.body);
+  }
   dropFirstReadings(sendCount);
 }
 
@@ -802,6 +825,8 @@ void setup() {
 
   pinMode(STATUS_LED_PIN, OUTPUT);
   setLedHardware(false);
+  pinMode(SPEAKER_PIN, OUTPUT);
+  setSpeakerHardware(false);
 
   loadDefaultSensorConfig();
   recomputePolling();

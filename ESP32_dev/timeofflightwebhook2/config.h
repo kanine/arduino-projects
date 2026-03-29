@@ -2,6 +2,7 @@
 
 // ── Hardware ──────────────────────────────────────────────────────────────────
 #define STATUS_LED_PIN         2
+#define SPEAKER_PIN            4
 #define I2C_SDA_PIN            21
 #define I2C_SCL_PIN            22
 
@@ -11,6 +12,11 @@
 #define WIFI_RECONNECT_MS      5000UL
 #define NTP_RETRY_MS           10000UL
 #define SENSOR_RETRY_MS        500UL
+
+// ── Webhook test mode ────────────────────────────────────────────────────────
+// When true, only validate that webhook replies with HTTP 2xx and "success": true.
+// Runtime config updates from response bodies are ignored.
+#define WEBHOOK_TEST_MODE      true
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 #define POLLS_PER_MINUTE       300.0f
