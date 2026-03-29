@@ -1,0 +1,40 @@
+ATN-IO v3
+Project: timeofflightwebhook2 — ESP32 VL53L1X webhook client with runtime config updates
+
+[BOARD]
+TYPE  = ESP32 WROOM dev board
+LOGIC = 3.3V
+
+[INPUTS]
+SDA -> D21
+SCL -> D22
+
+[OUTPUTS]
+LED -> GPIO2
+
+[COMPONENTS]
+U1 = VL53L1X time-of-flight sensor breakout (I2C addr 0x29)
+LED1 = Onboard or external status LED
+
+[WIRING]
+3V3 -> U1.VIN
+GND -> U1.GND
+
+D21 -> U1.SDA
+D22 -> U1.SCL
+
+GPIO2 -> LED1.A
+LED1.K -> GND
+
+; Optional sensor side pins
+; XSHUT may be left unconnected for single-sensor use
+; GPIO1/IRQ not used by this sketch
+
+[POWER]
+3V3 = ESP32 3.3V rail
+
+[NOTES]
+- Logic level is 3.3V on the ESP32.
+- Default firmware pins are SDA=21, SCL=22, LED=2; change them in config.h if needed.
+- Install `VL53L1X (1.3.1)` by Pololu from Arduino Library Manager.
+- This sketch uses only the status LED for startup, send-result, and config-update feedback.
