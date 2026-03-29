@@ -5,6 +5,7 @@
 #define SPEAKER_PIN            4
 #define I2C_SDA_PIN            21
 #define I2C_SCL_PIN            22
+#define SPEAKER_STARTUP_TEST   false
 
 // ── Network / timing ──────────────────────────────────────────────────────────
 #define NTP_SERVER             "pool.ntp.org"
@@ -16,7 +17,7 @@
 // ── Webhook test mode ────────────────────────────────────────────────────────
 // When true, only validate that webhook replies with HTTP 2xx and "success": true.
 // Runtime config updates from response bodies are ignored.
-#define WEBHOOK_TEST_MODE      true
+#define WEBHOOK_TEST_MODE      false
 
 // ── Polling ───────────────────────────────────────────────────────────────────
 #define POLLS_PER_MINUTE       300.0f

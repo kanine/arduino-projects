@@ -25,6 +25,8 @@ constexpr uint32_t STARTUP_ON_MS = 300;
 constexpr uint32_t STARTUP_OFF_PHASE1_MS = 300;
 constexpr uint32_t STARTUP_OFF_MS = 200;
 constexpr uint32_t STARTUP_PHASE_PAUSE_MS = 500;
+constexpr uint32_t SPEAKER_TEST_ON_MS = 80;
+constexpr uint32_t SPEAKER_TEST_OFF_MS = 80;
 constexpr uint32_t LED_FLASH_MS = 120;
 constexpr uint32_t LED_HOLD_MS = 500;
 constexpr uint32_t SENSOR_TIMEOUT_MS = 250;
@@ -252,6 +254,17 @@ static void blinkBlocking(uint8_t count, uint32_t offMs) {
     delay(STARTUP_ON_MS);
     digitalWrite(STATUS_LED_PIN, LOW);
     delay(offMs);
+  }
+}
+
+static void chirpSpeakerBlocking(uint8_t count, uint32_t onMs, uint32_t offMs) {
+  for (uint8_t i = 0; i < count; i++) {
+    setSpeakerHardware(true);
+    delay(onMs);
+    setSpeakerHardware(false);
+    if (i + 1 < count) {
+      delay(offMs);
+    }
   }
 }
 
@@ -827,6 +840,10 @@ void setup() {
   setLedHardware(false);
   pinMode(SPEAKER_PIN, OUTPUT);
   setSpeakerHardware(false);
+
+  if (SPEAKER_STARTUP_TEST) {
+    chirpSpeakerBlocking(2, SPEAKER_TEST_ON_MS, SPEAKER_TEST_OFF_MS);
+  }
 
   loadDefaultSensorConfig();
   recomputePolling();
